@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kamera Smart Absensi - Admin v2.6</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Icon Pack -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 50% 50%, #0d131a 0%, #05070a 100%);
+    }
+    .glass-panel {
+      background: rgba(13, 20, 30, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    .glass-card {
+      background: rgba(20, 28, 40, 0.5);
+      border: 1px solid rgba(16, 185, 129, 0.08);
+      backdrop-filter: blur(8px);
+    }
+    .accent-shadow {
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    }
+    
+    /* Efek Rana Kamera Shutter Flash */
+    .shutter-flash {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 30;
+      transition: opacity 0.1s ease-out;
+    }
+    .shutter-flash.active {
+      opacity: 1;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05070a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #10b981;
+      border-radius: 4px;
+    }
+    .shimmer {
+      background: linear-gradient(90deg, rgba(20,28,40,0.5) 25%, rgba(16,185,129,0.1) 50%, rgba(20,28,40,0.5) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 p-4 md:p-6 flex flex-col justify-between">
+
+  <!-- ================= TOP HEADER (Optimasi Android & Mobile View) ================= -->
+  <header class="w-full max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+    <div class="flex items-center gap-3">
+      <div class="relative w-11 h-11 rounded-xl overflow-hidden border border-emerald-500/30 accent-shadow flex items-center justify-center bg-slate-950">
+        <img id="Tut-Wuri-Handayani.png" src="<?= logoUrl ?>" onerror="this.src='https://6a2bbf609e041c30a185fe73.imgix.net/Tut-Wuri-Handayani.png?w=512&h=512&ar=512%3A512';" class="w-full h-full object-cover" alt="Logo Zettbos">
+      </div>
+      <div>
+        <h1 class="font-extrabold text-lg tracking-wide bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">APLIKASI ABSENSI</h1>
+        <p class="text-xs text-slate-400 font-medium">Smart Absensi v4.0 </p>
+        <p class="text-xs text-slate-400 font-medium">Created By Deddy Ngabalin </p>
+      </div>
+    </div>
+    
+    <!-- GPS Location Banner Tracker -->
+    <div class="flex items-center gap-2 bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800 text-xs">
+      <i class="fa-solid fa-location-dot text-emerald-400 animate-pulse"></i>
+      <span class="text-slate-400">GPS:</span>
+      <span id="gpsTrackerStatus" class="font-mono text-emerald-400 font-bold">Mendapatkan Lokasi...</span>
+    </div>
+
+    <!-- Hari, Tanggal & Jam Aktif Dinamis -->
+    <div class="flex flex-col items-center sm:items-end bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800">
+      <div id="liveClock" class="text-sm font-mono font-bold text-emerald-400 tracking-wider">Memuat Waktu...</div>
+      <div id="liveDate" class="text-[18px] text-slate-400 font-medium uppercase mt-0.5">Memuat Hari...</div>
+    </div>
+    
+    <div>
+      <button onclick="bukaAdminModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-400 text-xs font-semibold border border-slate-700/80 transition-all flex items-center gap-2">
+        <i class="fa-solid fa-user-shield"></i> Portal Admin
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CORE APP ================= -->
+  <main class="w-full max-w-5xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- KIRI: PANEL INPUT DAN KONSOL KAMERA (7 KOLOM) -->
+    <section class="lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- KOTAK KAMERA -->
+      <div class="glass-panel rounded-3xl p-5 relative overflow-hidden flex flex-col gap-4">
+        <div class="absolute top-4 left-4 z-10 bg-slate-950/80 px-3 py-1 rounded-full border border-slate-800 text-[10px] font-semibold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Viewfinder
+        </div>
+        
+        <!-- Frame Output Kamera -->
+        <div class="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80 flex items-center justify-center">
+          <video id="video" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+          <canvas id="canvas" class="w-full h-full object-cover hidden"></canvas>
+          <img id="placeholderImg" class="w-full h-full object-cover opacity-30" src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80">
+          
+          <!-- Efek Flash Shutter -->
+          <div id="cameraFlash" class="shutter-flash"></div>
+
+          <!-- Hidden Input File untuk Kamera Sistem Fallback (Bypass Iframe Sandbox Security) -->
+          <input type="file" id="cameraFallbackInput" accept="image/*" capture="user" class="hidden" onchange="handleFallbackImage(event)">
+
+          <!-- Tombol Aktivasi Pertama Kali -->
+          <button id="startCamBtn" onclick="mulaiKamera()" class="absolute px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm tracking-wide accent-shadow transition-all flex items-center gap-2">
+            <i class="fa-solid fa-camera"></i> Aktifkan Kamera Absen
+          </button>
+        </div>
+
+        <div class="flex gap-3">
+          <button id="captureBtn" onclick="ambilFoto()" disabled class="flex-1 py-3.5 px-4 rounded-xl bg-emerald-500 disabled:bg-slate-800 text-slate-950 disabled:text-slate-500 font-bold text-sm transition-all flex items-center justify-center gap-2 accent-shadow">
+            <i class="fa-solid fa-shuttle-space"></i> Bidik & Kunci Wajah
+          </button>
+          <!-- Flip Camera Button (Kamera Switcher) -->
+          <button id="flipCamBtn" onclick="flipKamera()" disabled class="px-4 rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-slate-700/80 transition-all flex items-center justify-center" title="Putar Kamera">
+            <i class="fa-solid fa-camera-rotate"></i>
+          </button>
+          <button id="resetCamBtn" onclick="resetKamera()" disabled class="px-4 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/80 transition-all flex items-center justify-center">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- KOTAK FORMULIR ABSENSI -->
+      <div class="glass-panel rounded-3xl p-6 flex flex-col gap-4">
+        <h3 class="text-sm font-bold text-emerald-400 tracking-wider uppercase mb-2">Formulir Verifikasi Absen</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs text-slate-400 font-semibold uppercase">Nomor NIP/NUPTK/NIK</label>
+            <div class="relative flex gap-2">
+              <div class="relative flex-1">
+                <i class="fa-solid fa-id-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                <input type="text" id="idKaryawan" placeholder="Contoh: NIP/NUPTK/NIK" class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500/50 outline-none text-slate-100 font-medium placeholder-slate-600 transition-all text-sm">
+              </div>
+              <button onclick="mintaIdOtomatis()" class="px-3.5 rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 border border-slate-700/80 font-bold text-xs transition-all flex items-center justify-center" title="Auto Generate ID Baru">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto
+              </button>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs text-slate-400 font-semibold uppercase">Nama Lengkap Guru</label>
+            <div class="relative">
+              <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+              <input type="text" id="namaKaryawan" placeholder="Contoh: Dedi Arbain, S.Kom., M.Kom." class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500/50 outline-none text-slate-100 font-medium placeholder-slate-600 transition-all text-sm">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs text-slate-400 font-semibold uppercase">Pilih Instansi/Sekolah Penugasan</label>
+          <div class="relative">
+            <i class="fa-solid fa-school absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+            <select id="pilihSekolah" class="w-full pl-10 pr-10 py-3 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500/50 outline-none text-slate-300 font-medium transition-all text-sm appearance-none">
+              <option value="">-- Hubungkan Instansi Anda --</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+
+        <button id="submitAbsenBtn" onclick="kirimFormulirAbsensi()" class="w-full py-4 mt-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm tracking-widest uppercase transition-all flex items-center justify-center gap-2 accent-shadow">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Verifikasi & Kirim Absensi
+        </button>
+      </div>
+
+    </section>
+
+    <!-- KANAN: LIVE STREAM LOG ABSENSI KARYAWAN (5 KOLOM) -->
+    <section class="lg:col-span-5 flex flex-col gap-6 h-full">
+      <div class="glass-panel rounded-3xl p-5 flex flex-col gap-4 h-[630px] overflow-hidden">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider">Aktivitas Absensi Terbaru</h3>
+            <p class="text-[10px] text-slate-500 font-medium mt-0.5">Umpan Real-time Sinkronisasi Cloud</p>
+          </div>
+          <button onclick="muatUlangLogStream()" class="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-all border border-slate-800/80">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
+
+        <!-- Wadah Log Absen -->
+        <div id="logStreamContainer" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-3">
+          <div class="shimmer-item flex gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-800/50">
+            <div class="w-12 h-12 rounded-lg shimmer"></div>
+            <div class="flex-1 flex flex-col gap-2">
+              <div class="h-3 w-1/2 rounded shimmer"></div>
+              <div class="h-2.5 w-3/4 rounded shimmer"></div>
+              <div class="h-2 w-1/3 rounded shimmer"></div>
+            </div>
+          </div>
+          <div class="shimmer-item flex gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-800/50">
+            <div class="w-12 h-12 rounded-lg shimmer"></div>
+            <div class="flex-1 flex flex-col gap-2">
+              <div class="h-3 w-1/2 rounded shimmer"></div>
+              <div class="h-2.5 w-3/4 rounded shimmer"></div>
+              <div class="h-2 w-1/3 rounded shimmer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="w-full max-w-5xl mx-auto mt-6 text-center text-[14px] text-slate-600 font-medium uppercase tracking-widest border-t border-slate-900 pt-4">
+    Aplikasi Smart Absensi Platform © 2026 • GPS Tracking & Photo Compression Enabled @deddy-ngabalin
+  </footer>
+
+  <!-- ================= TOAST NOTIFICATION STATUS ================= -->
+  <div id="toastNotification" class="fixed bottom-6 right-6 z-50 max-w-sm w-full p-4 rounded-2xl glass-panel border border-emerald-500/30 shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+    <div class="flex gap-3">
+      <div id="toastIcon" class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <div class="flex-1">
+        <h4 id="toastTitle" class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Berhasil</h4>
+        <p id="toastMessage" class="text-xs text-slate-300 font-medium mt-1">Data absensi tersimpan.</p>
+        <div id="toastWaStatus" class="mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden">
+          <i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp: <span id="toastWaStatusTxt">-</span>
+        </div>
+      </div>
+      <button onclick="tutupToast()" class="text-slate-500 hover:text-slate-300">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= MODAL PORTAL ADMIN ================= -->
+  <div id="adminModal" class="fixed inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-4xl max-h-[90vh] rounded-3xl glass-panel flex flex-col overflow-hidden border border-slate-800">
+      
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
+        <div>
+          <h2 class="text-base font-extrabold text-emerald-400 tracking-wider uppercase">Portal Administrator Aplikasi Smart Absensi</h2>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">Ekspor Data, Tambah Instansi, & Pengawasan Guru,Kepala Sekolah dan Staf TU</p>
+        </div>
+        <button onclick="tutupAdminModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/80 flex items-center justify-center transition-all">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Portal PIN Gate -->
+      <div id="adminPinGate" class="p-8 flex flex-col items-center justify-center gap-4 flex-1">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-2xl accent-shadow">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="text-center">
+          <h3 class="text-sm font-bold text-slate-200">Keamanan Administrator Diaktifkan</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-xs">Harap masukkan PIN Admin Anda untuk mengakses rekap log data dan konfigurasi sekolah.</p>
+        </div>
+        <div class="flex flex-col gap-2 w-full max-w-xs">
+          <input type="password" id="inputPinAdmin" placeholder="Masukkan PIN Admin" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500/50 outline-none text-center font-mono font-bold tracking-widest text-slate-100 transition-all text-sm">
+          <button onclick="verifikasiAksesAdmin()" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-widest transition-all accent-shadow">
+            Buka Gerbang Akses
+          </button>
+        </div>
+      </div>
+
+      <!-- Portal Admin Dashboard (Hidden by default) -->
+      <div id="adminDashboard" class="p-6 overflow-y-auto flex-1 flex flex-col gap-6 hidden">
+        
+        <!-- Baris Atas: Input Sekolah Baru & Filter Log -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Kotak Tambah Sekolah -->
+          <div class="glass-card p-4 rounded-2xl border border-slate-800">
+            <h4 class="text-xs font-bold text-emerald-400 tracking-wider uppercase mb-3"><i class="fa-solid fa-plus-circle mr-1"></i> Tambah Instansi/Sekolah</h4>
+            <div class="flex gap-2">
+              <input type="text" id="sekolahBaruInput" placeholder="Nama Sekolah/Instansi Baru" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500/50 outline-none text-xs text-slate-100 font-medium">
+              <button onclick="tambahSekolahServer()" class="px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase transition-all flex items-center justify-center">
+                Simpan
+              </button>
+            </div>
+          </div>
+          <!-- Kotak Filter & Ekspor -->
+          <div class="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+            <h4 class="text-xs font-bold text-emerald-400 tracking-wider uppercase mb-2"><i class="fa-solid fa-filter mr-1"></i> Filter & Ekspor Rekapitulasi</h4>
+            <div class="flex gap-2">
+              <select id="filterSekolahAdmin" onchange="muatLogTabelAdmin()" class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500/50 outline-none text-xs text-slate-300 appearance-none">
+                <option value="Semua Sekolah">Semua Sekolah</option>
+              </select>
+              <button onclick="unduhRekapCSV()" class="px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 hover:border-transparent font-bold text-xs uppercase transition-all flex items-center gap-1.5 justify-center">
+                <i class="fa-solid fa-file-csv text-sm"></i> Unduh CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabel Log Rekap Utama -->
+        <div class="flex flex-col gap-3">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-bold text-emerald-400 tracking-wider uppercase"><i class="fa-solid fa-table-list mr-1"></i> Data Transaksi Absensi</h4>
+            <span id="totalBarisTabel" class="text-[10px] bg-slate-900 px-2 py-0.5 rounded-md text-slate-400 font-bold font-mono">0 Log</span>
+          </div>
+          <div class="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/80">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-900/80 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-800">
+                    <th class="p-3 text-center w-12">No</th>
+                    <th class="p-3">Waktu Transaksi</th>
+                    <th class="p-3">nomor NIP/NUPTK/NIK</th>
+                    <th class="p-3">Nama Guru</th>
+                    <th class="p-3">Nama Instansi/Sekolah</th>
+                    <th class="p-3">GPS Koordinat</th>
+                    <th class="p-3 text-center w-24">Link Dokumentasi</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelLogBody" class="text-xs text-slate-300 divide-y divide-slate-800/60">
+                  <tr>
+                    <td colspan="7" class="p-8 text-center text-slate-500 font-medium">Belum ada aktivitas terekam.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT SYSTEM ENGINE (FRONTEND) ================= -->
+  <script>
+    // Data Dummy Fallback jika Google API tidak terdeteksi (Preview Mode Canvas)
+    const DATA_DUMMY_LOGS = [
+      { timestamp: "22/06/2026 08:30:12", idKaryawan: "KRY-0001", nama: "Ahmad Subarjo", namaSekolah: "SMAN 1 Jakarta", gpsKoordinat: "-6.2088, 106.8456", linkFoto: "-" },
+      { timestamp: "22/06/2026 08:31:45", idKaryawan: "KRY-0002", nama: "Dewi Lestari", namaSekolah: "SMK Negeri 2 Bandung", gpsKoordinat: "-6.9175, 107.6191", linkFoto: "-" },
+      { timestamp: "22/06/2026 08:33:01", idKaryawan: "KRY-0003", nama: "Christian Wijaya", namaSekolah: "SMA Nusantara", gpsKoordinat: "-6.1751, 106.8650", linkFoto: "-" }
+    ];
+    const DATA_DUMMY_SEKOLAH = ["SMAN 1 Jakarta", "SMK Negeri 2 Bandung", "SMA Nusantara"];
+
+    let localLogData = [];
+    let databaseSekolah = [];
+    let capturedPhotoBase64 = null;
+    let streamRef = null;
+    let isFallbackMode = false; // Deteksi Mode Fallback Kamera Sistem
+    
+    // Konfigurasi Flip Kamera
+    let currentFacingMode = "user"; // "user" = Depan, "environment" = Belakang
+    let currentGpsCoords = "Tidak Terlacak";
+
+    // ================= INISIALISASI HALAMAN UTAMA =================
+    window.onload = function() {
+      jalankanJamDinamis();
+      muatMasterSekolah();
+      muatUlangLogStream();
+      lacakGPSPengguna();
+    };
+
+    // ================= SYSTEM CLOCK & DATE REALTIME (Indonesia Barat) =================
+    function jalankanJamDinamis() {
+      const jamBox = document.getElementById('liveClock');
+      const tglBox = document.getElementById('liveDate');
+      const opsiHari = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      
+      setInterval(function() {
+        const skr = new Date();
+        jamBox.textContent = skr.toLocaleTimeString('id-ID', { hour12: false });
+        tglBox.textContent = skr.toLocaleDateString('id-ID', opsiHari);
+      }, 1000);
+    }
+
+    // ================= INTEGRASI GPS TRACKER =================
+    function lacakGPSPengguna() {
+      const gpsBanner = document.getElementById('gpsTrackerStatus');
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            const lat = position.coords.latitude.toFixed(5);
+            const lng = position.coords.longitude.toFixed(5);
+            currentGpsCoords = lat + ", " + lng;
+            gpsBanner.textContent = currentGpsCoords;
+          },
+          function(error) {
+            console.warn("GPS Access Denied: ", error.message);
+            currentGpsCoords = "Akses Lokasi Ditolak";
+            gpsBanner.textContent = "Akses Ditolak";
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      } else {
+        currentGpsCoords = "Tidak Didukung";
+        gpsBanner.textContent = "Tidak Didukung";
+      }
+    }
+
+    // ================= AUTO ID GENERATOR (INTEGRASI) =================
+    function mintaIdOtomatis() {
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      const inputId = document.getElementById('idKaryawan');
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(nextId) {
+            inputId.value = nextId;
+            showToast("ID Karyawan otomatis diset ke " + nextId, "success");
+          })
+          .withFailureHandler(function() {
+            showToast("Gagal mengambil ID otomatis dari server.", "error");
+          })
+          .generateNextEmployeeId();
+      } else {
+        // Fallback Sandbox
+        const length = DATA_DUMMY_LOGS.length + 1;
+        const fallbackId = "KRY-" + String(length).padStart(4, '0');
+        inputId.value = fallbackId;
+        showToast("[PREVIEW] ID Otomatis: " + fallbackId, "success");
+      }
+    }
+
+    // ================= LOAD DATA MASTER SEKOLAH (DROPDOWN) =================
+    function muatMasterSekolah() {
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            databaseSekolah = data;
+            renderDropdownSekolah(data);
+          })
+          .withFailureHandler(function(err) {
+            showToast("Gagal menarik data sekolah dari server.", "error");
+            renderDropdownSekolah(DATA_DUMMY_SEKOLAH);
+          })
+          .ambilMasterSekolah();
+      } else {
+        databaseSekolah = DATA_DUMMY_SEKOLAH;
+        renderDropdownSekolah(DATA_DUMMY_SEKOLAH);
+      }
+    }
+
+    function renderDropdownSekolah(data) {
+      const dropdownAbsen = document.getElementById('pilihSekolah');
+      const dropdownFilterAdmin = document.getElementById('filterSekolahAdmin');
+      
+      dropdownAbsen.innerHTML = '<option value="">-- Hubungkan Instansi Anda --</option>';
+      dropdownFilterAdmin.innerHTML = '<option value="Semua Sekolah">Semua Sekolah</option>';
+      
+      data.forEach(function(sekolah) {
+        const optAbsen = document.createElement('option');
+        optAbsen.value = sekolah;
+        optAbsen.textContent = sekolah;
+        dropdownAbsen.appendChild(optAbsen);
+        
+        const optFilter = document.createElement('option');
+        optFilter.value = sekolah;
+        optFilter.textContent = sekolah;
+        dropdownFilterAdmin.appendChild(optFilter);
+      });
+    }
+
+    // ================= PENGOLAHAN KAMERA ABSENSI (HYBRID SWITCHER INTEGRATED) =================
+    async function mulaiKamera() {
+      const video = document.getElementById('video');
+      const placeholderImg = document.getElementById('placeholderImg');
+      const startCamBtn = document.getElementById('startCamBtn');
+      const captureBtn = document.getElementById('captureBtn');
+      const flipCamBtn = document.getElementById('flipCamBtn');
+      const resetCamBtn = document.getElementById('resetCamBtn');
+      
+      // Matikan stream lama jika sedang berjalan
+      if (streamRef) {
+        streamRef.getTracks().forEach(function(track) { track.stop(); });
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: currentFacingMode },
+          audio: false
+        });
+        
+        streamRef = stream;
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        placeholderImg.classList.add('hidden');
+        startCamBtn.classList.add('hidden');
+        
+        captureBtn.removeAttribute('disabled');
+        flipCamBtn.removeAttribute('disabled');
+        resetCamBtn.removeAttribute('disabled');
+        isFallbackMode = false;
+      } catch (err) {
+        console.warn("Kamera Inline Ditolak/Diblokir (Sandbox Iframe). Berpindah ke Mode Kamera Perangkat Sistem.", err);
+        isFallbackMode = true;
+        
+        // Ubah UI agar Terintegrasi dengan Input Kamera Sistem (Aman dari Iframe Sandbox)
+        video.classList.add('hidden');
+        placeholderImg.classList.remove('hidden');
+        
+        // Ganti Tombol Utama Menjadi Pemicu Kamera Perangkat
+        startCamBtn.innerHTML = '<i class="fa-solid fa-camera-retro"></i> Hubungkan Kamera Perangkat';
+        startCamBtn.className = "absolute px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm tracking-wide accent-shadow transition-all flex items-center gap-2 animate-pulse";
+        startCamBtn.setAttribute('onclick', 'pemicuKameraFallback()');
+
+        // Sesuaikan tombol bidik untuk memicu kamera sistem langsung
+        captureBtn.removeAttribute('disabled');
+        captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Ambil Foto (Kamera Perangkat)';
+        captureBtn.setAttribute('onclick', 'pemicuKameraFallback()');
+        resetCamBtn.removeAttribute('disabled');
+        
+        showToast("Izin Kamera Inline diblokir sistem sandbox. Gunakan Mode Kamera Perangkat!", "error");
+      }
+    }
+
+    // Memicu Klik Input Kamera Sistem secara terpercaya via user gesture asli
+    function pemicuKameraFallback() {
+      document.getElementById('cameraFallbackInput').click();
+    }
+
+    // Handler Konversi file foto sistem ke base64 yang dikompres
+    function handleFallbackImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('canvas');
+          const context = canvas.getContext('2d');
+          const placeholderImg = document.getElementById('placeholderImg');
+          const video = document.getElementById('video');
+          const startCamBtn = document.getElementById('startCamBtn');
+          const captureBtn = document.getElementById('captureBtn');
+
+          // Menjaga agar orientasi dan ukuran foto terkompresi ideal (max-width: 640px)
+          const maxDimension = 640;
+          let w = img.width;
+          let h = img.height;
+          
+          if (w > h) {
+            if (w > maxDimension) {
+              h *= maxDimension / w;
+              w = maxDimension;
+            }
+          } else {
+            if (h > maxDimension) {
+              w *= maxDimension / h;
+              h = maxDimension;
+            }
+          }
+          
+          canvas.width = w;
+          canvas.height = h;
+          context.drawImage(img, 0, 0, w, h);
+
+          // Lakukan kompresi optimal kualitas JPEG 0.7 (Merampingkan data)
+          capturedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          video.classList.add('hidden');
+          placeholderImg.classList.add('hidden');
+          startCamBtn.classList.add('hidden');
+          canvas.classList.remove('hidden');
+
+          captureBtn.setAttribute('disabled', 'true');
+          captureBtn.innerHTML = '<i class="fa-solid fa-lock text-emerald-400"></i> Wajah Terkunci!';
+          
+          showToast("Foto terkompresi & koordinat GPS berhasil dikunci!", "success");
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function flipKamera() {
+      if (isFallbackMode) {
+        showToast("Fitur balik kamera inline tidak tersedia dalam mode fallback sistem.", "error");
+        return;
+      }
+      currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+      showToast("Mengalihkan ke Kamera " + (currentFacingMode === "user" ? "Depan" : "Belakang") + "...", "success");
+      mulaiKamera();
+    }
+
+    function ambilFoto() {
+      if (isFallbackMode) {
+        pemicuKameraFallback();
+        return;
+      }
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+      const captureBtn = document.getElementById('captureBtn');
+      const flash = document.getElementById('cameraFlash');
+      
+      // Trigger Efek Rana Kedip (Shutter Flash)
+      flash.classList.add('active');
+      setTimeout(function() {
+        flash.classList.remove('active');
+      }, 100);
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      
+      // Salin frame video saat ini ke canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // INTEGRASI KOMPRESI GAMBAR (JPEG, Kualitas 0.7 untuk mereduksi beban data)
+      capturedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      
+      video.classList.add('hidden');
+      canvas.classList.remove('hidden');
+      captureBtn.setAttribute('disabled', 'true');
+      captureBtn.innerHTML = '<i class="fa-solid fa-lock text-emerald-400"></i> Wajah Terkunci!';
+      
+      showToast("Foto terkompresi & koordinat GPS berhasil dikunci!", "success");
+    }
+
+    function resetKamera() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const captureBtn = document.getElementById('captureBtn');
+      const startCamBtn = document.getElementById('startCamBtn');
+      const placeholderImg = document.getElementById('placeholderImg');
+      
+      capturedPhotoBase64 = null;
+      document.getElementById('cameraFallbackInput').value = ""; // Bersihkan nilai file lama
+      
+      canvas.classList.add('hidden');
+      
+      if (isFallbackMode) {
+        placeholderImg.classList.remove('hidden');
+        video.classList.add('hidden');
+        startCamBtn.classList.remove('hidden');
+        
+        captureBtn.removeAttribute('disabled');
+        captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Ambil Foto (Kamera Perangkat)';
+      } else {
+        video.classList.remove('hidden');
+        captureBtn.removeAttribute('disabled');
+        captureBtn.innerHTML = '<i class="fa-solid fa-shuttle-space"></i> Bidik & Kunci Wajah';
+      }
+    }
+
+    // ================= TRANSAKSI PENYIMPANAN ABSENSI (MUTASI DATA) =================
+    function kirimFormulirAbsensi() {
+      const idKaryawan = document.getElementById('idKaryawan').value.trim();
+      const nama = document.getElementById('namaKaryawan').value.trim();
+      const namaSekolah = document.getElementById('pilihSekolah').value;
+      const submitBtn = document.getElementById('submitAbsenBtn');
+      
+      if (!idKaryawan || !nama || !namaSekolah) {
+        showToast("Gagal! Mohon lengkapi seluruh data formulir.", "error");
+        return;
+      }
+      if (!capturedPhotoBase64) {
+        showToast("Gagal! Potret wajah Anda terlebih dahulu sebelum absensi.", "error");
+        return;
+      }
+      
+      submitBtn.setAttribute('disabled', 'true');
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Menyinkronkan Database...';
+      
+      // Payload terintegrasi GPS & Base64 Terkompresi
+      const payload = {
+        idKaryawan: idKaryawan,
+        nama: nama,
+        namaSekolah: namaSekolah,
+        fotoBase64: capturedPhotoBase64,
+        gpsKoordinat: currentGpsCoords
+      };
+      
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            submitBtn.removeAttribute('disabled');
+            submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Verifikasi & Kirim Absensi';
+            
+            if (response.success) {
+              showToast(response.message, "success", response.waStatus);
+              document.getElementById('idKaryawan').value = "";
+              document.getElementById('namaKaryawan').value = "";
+              document.getElementById('pilihSekolah').value = "";
+              resetKamera();
+              muatUlangLogStream();
+              lacakGPSPengguna(); // Refresh GPS
+            } else {
+              showToast(response.message || "Gagal menyimpan absensi.", "error");
+            }
+          })
+          .withFailureHandler(function(err) {
+            submitBtn.removeAttribute('disabled');
+            submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Verifikasi & Kirim Absensi';
+            showToast("Sistem error saat mengirim data ke cloud.", "error");
+          })
+          .simpanAbsensi(payload);
+      } else {
+        // Fallback Sandbox Simulasi Berhasil
+        setTimeout(function() {
+          submitBtn.removeAttribute('disabled');
+          submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Verifikasi & Kirim Absensi';
+          
+          const formatTgl = new Date().toLocaleString('id-ID');
+          const mockSuccessResponse = {
+            success: true,
+            message: "[TEST] Absensi Terkirim dengan GPS (" + currentGpsCoords + ")",
+            waStatus: "Sukses Terkirim (Sandbox)"
+          };
+          
+          showToast(mockSuccessResponse.message, "success", mockSuccessResponse.waStatus);
+          
+          DATA_DUMMY_LOGS.unshift({
+            timestamp: formatTgl,
+            idKaryawan: payload.idKaryawan,
+            nama: payload.nama,
+            namaSekolah: payload.namaSekolah,
+            gpsKoordinat: currentGpsCoords,
+            linkFoto: "-"
+          });
+          
+          document.getElementById('idKaryawan').value = "";
+          document.getElementById('namaKaryawan').value = "";
+          document.getElementById('pilihSekolah').value = "";
+          resetKamera();
+          muatUlangLogStream();
+        }, 1200);
+      }
+    }
+
+    // ================= LOADER LOG AKTIVITAS ABSENSI STREAM =================
+    function muatUlangLogStream() {
+      const container = document.getElementById('logStreamContainer');
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(logs) {
+            localLogData = logs;
+            renderLogStream(logs);
+          })
+          .withFailureHandler(function(err) {
+            renderLogStream(DATA_DUMMY_LOGS);
+          })
+          .ambilLogAbsensi("", 15);
+      } else {
+        renderLogStream(DATA_DUMMY_LOGS);
+      }
+    }
+
+    function renderLogStream(data) {
+      const container = document.getElementById('logStreamContainer');
+      container.innerHTML = "";
+      
+      if (!data || data.length === 0) {
+        container.innerHTML = 
+          '<div class="flex flex-col items-center justify-center p-8 text-center text-slate-600 gap-2 h-full">' +
+            '<i class="fa-solid fa-database-circle-xmark text-3xl"></i>' +
+            '<span class="text-xs font-semibold">Tidak Ada Log Tersimpan</span>' +
+          '</div>';
+        return;
+      }
+      
+      data.forEach(function(item) {
+        const itemBox = document.createElement('div');
+        itemBox.className = "flex gap-3.5 p-3 rounded-2xl glass-card border border-slate-800 hover:border-emerald-500/20 transition-all duration-200 items-center";
+        
+        const photoUrl = (item.linkFoto && item.linkFoto !== "-") ? item.linkFoto : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80";
+        
+        itemBox.innerHTML = 
+          '<div class="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-800 flex-shrink-0 bg-slate-900">' +
+            '<img src="' + photoUrl + '" onerror="this.src=\'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80\';" class="w-full h-full object-cover">' +
+          '</div>' +
+          '<div class="flex-1 min-w-0">' +
+            '<div class="flex justify-between items-start gap-1">' +
+              '<h4 class="text-xs font-bold text-slate-100 truncate">' + item.nama + '</h4>' +
+              '<span class="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded flex-shrink-0">' + item.idKaryawan + '</span>' +
+            '</div>' +
+            '<p class="text-[10px] text-slate-400 font-medium mt-0.5 truncate"><i class="fa-solid fa-school text-[8px] text-slate-500 mr-1"></i>' + item.namaSekolah + '</p>' +
+            '<p class="text-[9px] text-slate-500 font-medium truncate mt-0.5"><i class="fa-solid fa-location-arrow text-[8px] text-slate-500 mr-1"></i>' + (item.gpsKoordinat || "Tidak Dilacak") + '</p>' +
+            '<span class="text-[9px] text-slate-500 font-semibold tracking-wider block mt-1"><i class="fa-regular fa-clock mr-1"></i>' + item.timestamp + '</span>' +
+          '</div>';
+        
+        container.appendChild(itemBox);
+      });
+    }
+
+    // ================= SYSTEM ADMINISTRATOR PORTAL OVERLAY =================
+    function bukaAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      document.getElementById('adminPinGate').classList.remove('hidden');
+      document.getElementById('adminDashboard').classList.add('hidden');
+      document.getElementById('inputPinAdmin').value = "";
+    }
+
+    // Penutup modal admin
+    function tutupAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    function verifikasiAksesAdmin() {
+      const pin = document.getElementById('inputPinAdmin').value;
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(isValid) {
+            if (isValid) {
+              bukaDashboardAdmin();
+            } else {
+              showToast("Autentikasi PIN Admin Salah!", "error");
+            }
+          })
+          .withFailureHandler(function() {
+            showToast("Server mengalami kendala komunikasi PIN.", "error");
+          })
+          .verifikasiPinAdmin(pin);
+      } else {
+        if (pin === "123456") {
+          bukaDashboardAdmin();
+        } else {
+          showToast("Autentikasi PIN Salah! (Hint Sandbox: 123456)", "error");
+        }
+      }
+    }
+
+    function bukaDashboardAdmin() {
+      document.getElementById('adminPinGate').classList.add('hidden');
+      document.getElementById('adminDashboard').classList.remove('hidden');
+      muatLogTabelAdmin();
+    }
+
+    // ================= ADMINISTRATOR INTERACTION DATA =================
+    function muatLogTabelAdmin() {
+      const filter = document.getElementById('filterSekolahAdmin').value;
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(logs) {
+            renderTabelAdmin(logs);
+          })
+          .ambilLogAbsensi(filter, 100);
+      } else {
+        let filtered = DATA_DUMMY_LOGS;
+        if (filter !== "Semua Sekolah") {
+          filtered = DATA_DUMMY_LOGS.filter(function(l) { return l.namaSekolah === filter; });
+        }
+        renderTabelAdmin(filtered);
+      }
+    }
+
+    function renderTabelAdmin(logs) {
+      const tbody = document.getElementById('tabelLogBody');
+      const totalText = document.getElementById('totalBarisTabel');
+      tbody.innerHTML = "";
+      totalText.textContent = logs.length + " Log";
+      
+      if (logs.length === 0) {
+        tbody.innerHTML = 
+          '<tr>' +
+            '<td colspan="7" class="p-8 text-center text-slate-500 font-medium">Log absensi tidak ditemukan untuk instansi ini.</td>' +
+          '</tr>';
+        return;
+      }
+      
+      logs.forEach(function(row, index) {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/40 transition-colors";
+        
+        const photoLink = (row.linkFoto && row.linkFoto !== "-") 
+          ? '<a href="' + row.linkFoto + '" target="_blank" class="px-2.5 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 font-bold text-[10px] uppercase border border-emerald-500/20 transition-all inline-block"><i class="fa-solid fa-image"></i> Lihat</a>' 
+          : '<span class="text-slate-600 font-semibold italic">Kosong</span>';
+          
+        tr.innerHTML = 
+          '<td class="p-3 text-center text-slate-500 font-mono">' + (index + 1) + '</td>' +
+          '<td class="p-3 font-mono font-medium text-slate-400">' + row.timestamp + '</td>' +
+          '<td class="p-3"><span class="bg-slate-900 px-2 py-0.5 rounded font-mono text-emerald-400 font-bold border border-slate-800">' + row.idKaryawan + '</span></td>' +
+          '<td class="p-3 font-semibold text-slate-200">' + row.nama + '</td>' +
+          '<td class="p-3 font-medium text-slate-400">' + row.namaSekolah + '</td>' +
+          '<td class="p-3 font-mono text-[10px] text-slate-400">' + (row.gpsKoordinat || "Tidak Terlacak") + '</td>' +
+          '<td class="p-3 text-center">' + photoLink + '</td>';
+          
+        tbody.appendChild(tr);
+      });
+    }
+
+    function tambahSekolahServer() {
+      const input = document.getElementById('sekolahBaruInput');
+      const nama = input.value.trim();
+      
+      if (!nama) {
+        showToast("Mohon tulis nama instansi dengan benar.", "error");
+        return;
+      }
+      
+      const isGoogleEnv = typeof google !== "undefined" && google.script && google.script.run;
+      
+      if (isGoogleEnv) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              showToast(res.message, "success");
+              input.value = "";
+              muatMasterSekolah();
+            } else {
+              showToast(res.message, "error");
+            }
+          })
+          .tambahMasterSekolah(nama);
+      } else {
+        DATA_DUMMY_SEKOLAH.push(nama);
+        showToast("[TEST PREVIEW] Instansi Baru Terdaftar!", "success");
+        input.value = "";
+        muatMasterSekolah();
+      }
+    }
+
+    // ================= EKSPOR REKAPITULASI KE CSV =================
+    function unduhRekapCSV() {
+      const tableRows = document.querySelectorAll("#tabelLogBody tr");
+      
+      if (tableRows.length === 0 || tableRows[0].cells.length < 7) {
+        showToast("Data log absensi kosong. Gagal mengekspor CSV.", "error");
+        return;
+      }
+      
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "No,Waktu Transaksi,ID Karyawan,Nama Karyawan,Nama Sekolah,GPS Koordinat,Link Foto\n";
+      
+      tableRows.forEach(function(row) {
+        const index = row.cells[0].innerText;
+        const timestamp = row.cells[1].innerText;
+        const idKar = row.cells[2].innerText;
+        const nama = row.cells[3].innerText;
+        const sekolah = row.cells[4].innerText;
+        const gps = row.cells[5].innerText;
+        
+        const anchor = row.cells[6].querySelector('a');
+        const fotoUrl = anchor ? anchor.href : "-";
+        
+        csvContent += '"' + index + '","' + timestamp + '","' + idKar + '","' + nama + '","' + sekolah + '","' + gps + '","' + fotoUrl + '"\n';
+      });
+      
+      const encodedUri = encodeURI(csvContent);
+      const downloadLink = document.createElement("a");
+      downloadLink.setAttribute("href", encodedUri);
+      downloadLink.setAttribute("download", "Rekap_Absensi_Zettbos_" + Date.now() + ".csv");
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      showToast("Ekspor Data CSV Berhasil Diunduh!", "success");
+    }
+
+    // ================= TOAST STATE MANAGEMENT SYSTEM =================
+    let toastTimeout = null;
+    
+    function showToast(text, type, waStatus) {
+      const toast = document.getElementById('toastNotification');
+      const icon = document.getElementById('toastIcon');
+      const title = document.getElementById('toastTitle');
+      const msg = document.getElementById('toastMessage');
+      const waBox = document.getElementById('toastWaStatus');
+      const waTxt = document.getElementById('toastWaStatusTxt');
+      
+      toast.classList.remove('border-emerald-500/30', 'border-rose-500/30');
+      icon.classList.remove('bg-emerald-500/10', 'text-emerald-400', 'bg-rose-500/10', 'text-rose-400');
+      
+      if (type === "success") {
+        toast.classList.add('border-emerald-500/30');
+        icon.classList.add('bg-emerald-500/10', 'text-emerald-400');
+        icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        title.textContent = "BERHASIL";
+        title.className = "text-xs font-bold text-emerald-400 tracking-wider uppercase";
+      } else {
+        toast.classList.add('border-rose-500/30');
+        icon.classList.add('bg-rose-500/10', 'text-rose-400');
+        icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        title.textContent = "GAGAL / ERROR";
+        title.className = "text-xs font-bold text-rose-400 tracking-wider uppercase";
+      }
+      
+      msg.textContent = text;
+      
+      if (waStatus) {
+        waBox.classList.remove('hidden');
+        waTxt.textContent = waStatus;
+        if (waStatus === "Sukses Terkirim" || waStatus === "Sukses Terkirim (Sandbox)") {
+          waTxt.className = "text-emerald-400 font-bold";
+        } else {
+          waTxt.className = "text-amber-400 font-bold";
+        }
+      } else {
+        waBox.classList.add('hidden');
+      }
+      
+      toast.classList.remove('opacity-0', 'translate-y-20', 'pointer-events-none');
+      
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(tutupToast, 6000);
+    }
+
+    function tutupToast() {
+      const toast = document.getElementById('toastNotification');
+      toast.classList.add('opacity-0', 'translate-y-20', 'pointer-events-none');
+    }
+  </script>
+
+</body>
+</html>
